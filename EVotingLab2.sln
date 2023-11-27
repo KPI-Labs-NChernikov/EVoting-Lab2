@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34316.72
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Demo", "Demo\Demo.csproj", "{D7B835F0-0338-4108-BA75-16CD6EB2F2DE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Algorithms", "Algorithms\Algorithms.csproj", "{C26EFDFE-3F20-4F1C-BD26-E52CEC3209E6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Modelling", "Modelling\Modelling.csproj", "{2BFBE9F5-7B90-4314-BB9F-361D18B8C6CC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D7B835F0-0338-4108-BA75-16CD6EB2F2DE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D7B835F0-0338-4108-BA75-16CD6EB2F2DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D7B835F0-0338-4108-BA75-16CD6EB2F2DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D7B835F0-0338-4108-BA75-16CD6EB2F2DE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C26EFDFE-3F20-4F1C-BD26-E52CEC3209E6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C26EFDFE-3F20-4F1C-BD26-E52CEC3209E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C26EFDFE-3F20-4F1C-BD26-E52CEC3209E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C26EFDFE-3F20-4F1C-BD26-E52CEC3209E6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2BFBE9F5-7B90-4314-BB9F-361D18B8C6CC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2BFBE9F5-7B90-4314-BB9F-361D18B8C6CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2BFBE9F5-7B90-4314-BB9F-361D18B8C6CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2BFBE9F5-7B90-4314-BB9F-361D18B8C6CC}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {25ABB3B1-FE1B-43F0-8205-AD6B5B353D04}
+	EndGlobalSection
+EndGlobal
