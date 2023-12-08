@@ -5,11 +5,25 @@ using System.Numerics;
 
 var generator = new RSAKeysGenerator();
 var keys  = generator.GenerateKeys();
+var maskMultiplier = generator.GenerateMaskMultiplier(keys.PublicKey);
 
-var bouncyPrivate = BouncyCastleRsaParametersMapper.RSAParametersToBouncyPrivate(keys.PrivateKey);
-var bouncyPublic = BouncyCastleRsaParametersMapper.RSAParametersToBouncyPublic(keys.PublicKey);
+var message = "Hello world";
+var data = new ObjectToByteArrayTransformer().Transform(message);
 
-var privateParameters = BouncyCastleRsaParametersMapper.BouncyPrivateToRSAParameters(bouncyPrivate);
-var publicParameters = BouncyCastleRsaParametersMapper.BouncyPublicToRSAParameters(bouncyPublic);
+var rsaService = new RSAService();
+var mask = rsaService.Mask(data, keys.PublicKey, maskMultiplier);
+
+var signed = rsaService.SignHash(mask, keys.PrivateKey);
+
+var demasked = rsaService.DemaskSignature(signed, keys.PublicKey, maskMultiplier);
+
+var verified = rsaService.Verify(data, demasked, keys.PublicKey);
+var verified2 = rsaService.Verify(mask, signed, keys.PublicKey);
+
+var demasked2 = rsaService.DemaskSignature(mask, keys.PublicKey, maskMultiplier);
+
+var encrypted = rsaService.Encrypt(data, keys.PublicKey);
+var decrypted = rsaService.Decrypt(encrypted, keys.PrivateKey);
+var decryptedData = new ObjectToByteArrayTransformer().ReverseTransform<string>(decrypted);
 
 Console.WriteLine();

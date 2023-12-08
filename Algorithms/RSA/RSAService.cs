@@ -1,80 +1,73 @@
-﻿//using Algorithms.Abstractions;
-//using System.Numerics;
-//using System.Security.Cryptography;
+﻿using Algorithms.Abstractions;
+using Algorithms.Common;
+using Org.BouncyCastle.Crypto;
+using Org.BouncyCastle.Crypto.Digests;
+using Org.BouncyCastle.Crypto.Engines;
+using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Crypto.Signers;
+using Org.BouncyCastle.Math;
+using System.Security.Cryptography;
 
-//namespace Algorithms.RSA;
-//public sealed class RSAService : IRSAService
-//{
-//    public byte[] Sign(byte[] data, byte[] privateKey)
-//    {
-//        using var rsa = System.Security.Cryptography.RSA.Create();
-//        rsa.ImportRSAPrivateKey(privateKey, out _);
-//        var key = rsa.ExportParameters
-//        if (_hashAlgorithmName.Name != s_noHashAlgorithmName)
-//        {
-//            return rsa.SignData(data, _hashAlgorithmName, _signaturePadding);
-//        }
+namespace Algorithms.RSA;
+public sealed class RSAService : IRSAService
+{
+    private static IDigest CreateDigest() => new Sha256Digest();
+    private const int s_saltLength = 20;
 
-//        return rsa.SignHash(data, _hashAlgorithmName, _signaturePadding);
-//    }
+    public byte[] Decrypt(byte[] data, RSAParameters privateKey)
+    {
+        var engine = new RsaEngine();
+        engine.Init(false, BouncyCastleRsaParametersMapper.RSAParametersToBouncyPrivate(privateKey));
 
-//    public bool Verify(byte[] data, byte[] signature, byte[] publicKey)
-//    {
-//        using var rsa = System.Security.Cryptography.RSA.Create();
-//        rsa.ImportRSAPublicKey(publicKey, out _);
+        return engine.ProcessBlock(data, 0, data.Length);
+    }
 
-//        if (_hashAlgorithmName.Name != s_noHashAlgorithmName)
-//        {
-//            return rsa.VerifyData(data, signature, _hashAlgorithmName, _signaturePadding);
-//        }
+    public byte[] DemaskSignature(byte[] data, RSAParameters publicKey, byte[] maskMultiplier)
+    {
+        var blindingParams = new RsaBlindingParameters(BouncyCastleRsaParametersMapper.RSAParametersToBouncyPublic(publicKey), new BigInteger(maskMultiplier));
 
-//        return rsa.VerifyHash(data, signature, _hashAlgorithmName, _signaturePadding);
-//    }
+        var blindingEngine = new RsaBlindingEngine();
+        blindingEngine.Init(false, blindingParams);
 
-//    public byte[] Mask(byte[] data, byte[] publicKey, byte[] maskMultiplier)
-//    {
-//        using var rsa = System.Security.Cryptography.RSA.Create();
-//        rsa.ImportRSAPublicKey(publicKey, out _);
+        return blindingEngine.ProcessBlock(data, 0, data.Length);
+    }
 
-//        var parameters = rsa.ExportParameters(includePrivateParameters: false);
+    public byte[] Encrypt(byte[] data, RSAParameters publicKey)
+    {
+        var engine = new RsaEngine();
+        engine.Init(true, BouncyCastleRsaParametersMapper.RSAParametersToBouncyPublic(publicKey));
 
-//        var dataAsNumber = new BigInteger(data, true, true);
-//        var maskMultiplierAsNumber = new BigInteger(maskMultiplier, true, true);
-//        var eAsNumber = new BigInteger(parameters.Exponent, true, true);
-//        var nAsNumber = new BigInteger(parameters.Modulus, true, true);
+        return engine.ProcessBlock(data, 0, data.Length);
+    }
 
-//        var maskedDataAsNumber = (dataAsNumber * BigInteger.Pow(maskMultiplierAsNumber, (int)eAsNumber)) % nAsNumber;
-//        return maskMultiplierAsNumber.ToByteArray(true, true);
-//    }
+    public byte[] Mask(byte[] data, RSAParameters publicKey, byte[] maskMultiplier)
+    {
+        var blindingParams = new RsaBlindingParameters(BouncyCastleRsaParametersMapper.RSAParametersToBouncyPublic(publicKey), new BigInteger(maskMultiplier));
 
-//    public byte[] DemaskSignature(byte[] data, byte[] publicKey, byte[] maskMultiplier)
-//    {
-//        using var rsa = System.Security.Cryptography.RSA.Create();
-//        rsa.ImportRSAPublicKey(publicKey, out _);
+        var signer = new PssSigner(new RsaBlindingEngine(), CreateDigest(), s_saltLength);
 
-//        var parameters = rsa.ExportParameters(includePrivateParameters: false);
+        signer.Init(true, blindingParams);
 
-//        var dataAsNumber = new BigInteger(data, true, true);
-//        var maskMultiplierAsNumber = new BigInteger(maskMultiplier, true, true);
-//        var nAsNumber = new BigInteger(parameters.Modulus, true, true);
+        signer.BlockUpdate(data, 0, data.Length);
 
-//        var demaskedDataAsNumber = (dataAsNumber * BigIntegerHelperMethods.ModInverse(maskMultiplierAsNumber, nAsNumber)) % nAsNumber;
-//        return demaskedDataAsNumber.ToByteArray(true, true);
-//    }
+        return signer.GenerateSignature(); // get signature ready to sign
+    }
 
-//    public byte[] Encrypt(byte[] data, byte[] publicKey)
-//    {
-//        using var rsa = System.Security.Cryptography.RSA.Create();
-//        rsa.ImportRSAPublicKey(publicKey, out _);
+    public byte[] SignHash(byte[] hash, RSAParameters privateKey)
+    {
+        var engine = new RsaEngine();
+        engine.Init(true, BouncyCastleRsaParametersMapper.RSAParametersToBouncyPrivate(privateKey));
 
-//        return rsa.Encrypt(data, _encryptionPadding);
-//    }
+        return engine.ProcessBlock(hash, 0, hash.Length);
+    }
 
-//    public byte[] Decrypt(byte[] data, byte[] privateKey)
-//    {
-//        using var rsa = System.Security.Cryptography.RSA.Create();
-//        rsa.ImportRSAPrivateKey(privateKey, out _);
+    public bool Verify(byte[] data, byte[] signature, RSAParameters publicKey)
+    {
+        var signer = new PssSigner(new RsaEngine(), CreateDigest(), s_saltLength);
+        signer.Init(false, BouncyCastleRsaParametersMapper.RSAParametersToBouncyPublic(publicKey));
 
-//        return rsa.Decrypt(data, _encryptionPadding);
-//    }
-//}
+        signer.BlockUpdate(data, 0, data.Length);
+
+        return signer.VerifySignature(signature);
+    }
+}
