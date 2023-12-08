@@ -3,7 +3,7 @@
 namespace Modelling.Models;
 public sealed class VotingResults
 {
-    public ICollection<CandidateVotingResults> CandidatesResults { get; } = new List<CandidateVotingResults>();
+    public SortedDictionary<int, CandidateVotingResults> CandidatesResults { get; } = new ();
 
-    public ICollection<VoterResults> VoterResults { get; } = new List<VoterResults>();
+    public ICollection<VoterResults> VotersResults { get; } = new List<VoterResults>();
 }
