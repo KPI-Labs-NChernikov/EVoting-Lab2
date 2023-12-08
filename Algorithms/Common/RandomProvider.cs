@@ -9,4 +9,9 @@ public sealed class RandomProvider : IRandomProvider
     {
         return items.ElementAt(_random.Next(items.Count()));
     }
+
+    public int NextInt(int max) 
+    {
+        return _random.Next(max);
+    }
 }
