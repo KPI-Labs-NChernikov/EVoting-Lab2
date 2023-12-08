@@ -17,8 +17,8 @@ var signed = rsaService.SignHash(mask, keys.PrivateKey);
 
 var demasked = rsaService.DemaskSignature(signed, keys.PublicKey, maskMultiplier);
 
-var verified = rsaService.Verify(data, demasked, keys.PublicKey);
-var verified2 = rsaService.Verify(mask, signed, keys.PublicKey);
+var verified = rsaService.VerifyHash(data, demasked, keys.PublicKey);
+var verified2 = rsaService.VerifyHash(mask, signed, keys.PublicKey);
 
 var demasked2 = rsaService.DemaskSignature(mask, keys.PublicKey, maskMultiplier);
 

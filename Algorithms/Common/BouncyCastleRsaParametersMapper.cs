@@ -5,40 +5,44 @@ using System.Security.Cryptography;
 namespace Algorithms.Common;
 public static class BouncyCastleRsaParametersMapper
 {
-    public static RSAParameters BouncyPrivateToRSAParameters(RsaPrivateCrtKeyParameters parameters)
+    public static RSAParameters BouncyToRSAParameters(RsaKeyParameters parameters)
     {
+        if (!parameters.IsPrivate)
+        {
+            return new RSAParameters()
+            {
+                Exponent = parameters.Exponent.ToByteArray(),
+                Modulus = parameters.Modulus.ToByteArray()
+            };
+        }
+
+        var privateParameters = (RsaPrivateCrtKeyParameters)parameters;
         return new RSAParameters()
         {
             D = parameters.Exponent.ToByteArray(),
-            DP = parameters.DP.ToByteArray(),
-            DQ = parameters.DQ.ToByteArray(),
-            Exponent = parameters.PublicExponent.ToByteArray(),
-            InverseQ = parameters.QInv.ToByteArray(),
+            DP = privateParameters.DP.ToByteArray(),
+            DQ = privateParameters.DQ.ToByteArray(),
+            Exponent = privateParameters.PublicExponent.ToByteArray(),
+            InverseQ = privateParameters.QInv.ToByteArray(),
             Modulus = parameters.Modulus.ToByteArray(),
-            P = parameters.P.ToByteArray(),
-            Q = parameters.Q.ToByteArray()
+            P = privateParameters.P.ToByteArray(),
+            Q = privateParameters.Q.ToByteArray()
         };
     }
 
-    public static RSAParameters BouncyPublicToRSAParameters(RsaKeyParameters parameters)
+    public static RsaKeyParameters RSAParametersToBouncy(RSAParameters parameters)
     {
-        return new RSAParameters()
-        {
-            Exponent = parameters.Exponent.ToByteArray(),
-            Modulus = parameters.Modulus.ToByteArray()
-        };
-    }
-
-    public static RsaPrivateCrtKeyParameters RSAParametersToBouncyPrivate(RSAParameters parameters)
-    {
-        if (parameters.D is null || parameters.DP is null || parameters.DQ is null || parameters.InverseQ is null || parameters.P is null || parameters.Q is null)
-        {
-            throw new ArgumentException("The provided parameters are not a private key.", nameof(parameters));
-        }
-
         if (parameters.Exponent is null || parameters.Modulus is null)
         {
             throw new ArgumentException("The provided parameters are not an RSA key.", nameof(parameters));
+        }
+
+        if (parameters.D is null || parameters.DP is null || parameters.DQ is null || parameters.InverseQ is null || parameters.P is null || parameters.Q is null)
+        {
+            return new RsaKeyParameters(
+            isPrivate: false,
+            modulus: new BigInteger(parameters.Modulus),
+            exponent: new BigInteger(parameters.Exponent));
         }
 
         return new RsaPrivateCrtKeyParameters(
@@ -50,18 +54,5 @@ public static class BouncyCastleRsaParametersMapper
             dP: new BigInteger(parameters.DP),
             dQ: new BigInteger(parameters.DQ),
             qInv: new BigInteger(parameters.InverseQ));
-    }
-
-    public static RsaKeyParameters RSAParametersToBouncyPublic(RSAParameters parameters)
-    {
-        if (parameters.Exponent is null || parameters.Modulus is null)
-        {
-            throw new ArgumentException("The provided parameters are not an RSA key.", nameof(parameters));
-        }
-
-        return new RsaKeyParameters(
-            isPrivate: false,
-            modulus: new BigInteger(parameters.Modulus),
-            exponent: new BigInteger(parameters.Exponent));
     }
 }

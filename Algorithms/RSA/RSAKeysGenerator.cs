@@ -19,14 +19,14 @@ public sealed class RSAKeysGenerator : IMaskedAsymmetricAlgorithmKeysGenerator<R
         var privateKey = (RsaPrivateCrtKeyParameters)keyPair.Private;
         var publicKey = (RsaKeyParameters)keyPair.Public;
         return new Keys<RSAParameters>(
-            BouncyCastleRsaParametersMapper.BouncyPublicToRSAParameters(publicKey),
-            BouncyCastleRsaParametersMapper.BouncyPrivateToRSAParameters(privateKey));
+            BouncyCastleRsaParametersMapper.BouncyToRSAParameters(publicKey),
+            BouncyCastleRsaParametersMapper.BouncyToRSAParameters(privateKey));
     }
 
     public byte[] GenerateMaskMultiplier(RSAParameters publicKey)
     {
         var blindingFactorGenerator = new RsaBlindingFactorGenerator();
-        blindingFactorGenerator.Init(BouncyCastleRsaParametersMapper.RSAParametersToBouncyPublic(publicKey));
+        blindingFactorGenerator.Init(BouncyCastleRsaParametersMapper.RSAParametersToBouncy(publicKey));
 
         var blindingFactor = blindingFactorGenerator.GenerateBlindingFactor();
 
