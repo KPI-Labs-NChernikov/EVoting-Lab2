@@ -2,6 +2,7 @@
 using FluentResults;
 using Modelling.Entities;
 using Modelling.Models;
+using Org.BouncyCastle.Asn1.Ocsp;
 using System.Security.Cryptography;
 
 namespace Modelling;
@@ -87,8 +88,9 @@ public sealed class CentralElectionCommission
         return Result.Try<IReadOnlyList<Ballot>>(() => batch.MaskedBallots.Select(b =>
         {
             var temporarilySigned = rsaService.SignHash(b, _privateKey);
-            var demasked = rsaService.DemaskSignature(temporarilySigned, PublicKey, maskMultiplier);
-            return objectToByteTransformer.ReverseTransform<Ballot>(demasked)
+            var demaskedSignature = rsaService.DemaskSignature(temporarilySigned, PublicKey, maskMultiplier);
+            var decryptedBallot = rsaService.Decrypt(demaskedSignature, PublicKey);
+            return objectToByteTransformer.ReverseTransform<Ballot>(decryptedBallot)
                 ?? throw new InvalidOperationException("Value cannot be demasked.");
         }).ToList(), e => new Error("Message has wrong format or was incorrectly encrypted.").CausedBy(e));
     }
