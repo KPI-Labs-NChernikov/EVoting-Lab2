@@ -65,7 +65,7 @@ public sealed class CentralElectionCommission
                 continue;
             }
 
-            var batchVerificationResult = VerifyBatch(batch, expectedVoterId, ballotBatches.MaskMultiplier, rsaService, objectToByteTransformer);
+            var batchVerificationResult = CheckBatch(batch, expectedVoterId, ballotBatches.MaskMultiplier, rsaService, objectToByteTransformer);
             expectedVoterId ??= batchVerificationResult.Value;
             if (batchVerificationResult.IsFailed)
             {
@@ -75,7 +75,7 @@ public sealed class CentralElectionCommission
         return skipBatch;
     }
 
-    private Result<Guid> VerifyBatch(BallotBatch batch, Guid? expectedVoterId, byte[] maskMultiplier, IRSAService rsaService, IObjectToByteArrayTransformer objectToByteTransformer)
+    private Result<Guid> CheckBatch(BallotBatch batch, Guid? expectedVoterId, byte[] maskMultiplier, IRSAService rsaService, IObjectToByteArrayTransformer objectToByteTransformer)
     {
         return DemaskBallots(batch, maskMultiplier, rsaService, objectToByteTransformer)
             .Bind(VerifyBatchCandidates)
