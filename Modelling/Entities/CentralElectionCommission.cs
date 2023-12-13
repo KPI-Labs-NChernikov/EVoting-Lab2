@@ -43,6 +43,7 @@ public sealed class CentralElectionCommission
         return CheckIfVotingIsCompleted()
             .Bind(() => DecryptBallotBatchesCollection(collection, rsaService, objectToByteTransformer))
             .Bind(c => CheckBatches(c, rsaService, objectToByteTransformer, randomProvider))
+            .Bind(r => MarkVoterAsReceivedBallot(r.voterId).ToResult(r.ballotBatch))
             .Bind(b => SignBatch(b, rsaService));
     }
 
@@ -54,7 +55,7 @@ public sealed class CentralElectionCommission
             e => new Error("Message has wrong format or was incorrectly encrypted.").CausedBy(e));
     }
 
-    private Result<BallotBatch> CheckBatches(BallotBatchesCollection ballotBatches, IRSAService rsaService, IObjectToByteArrayTransformer objectToByteTransformer, IRandomProvider randomProvider)
+    private Result<(BallotBatch ballotBatch, Guid voterId)> CheckBatches(BallotBatchesCollection ballotBatches, IRSAService rsaService, IObjectToByteArrayTransformer objectToByteTransformer, IRandomProvider randomProvider)
     {
         var skipBatch = randomProvider.NextItem(ballotBatches);
         Guid? expectedVoterId = null;
@@ -72,7 +73,7 @@ public sealed class CentralElectionCommission
                 return batchVerificationResult.ToResult();
             }
         }
-        return skipBatch;
+        return (skipBatch, expectedVoterId!.Value);
     }
 
     private Result<Guid> CheckBatch(BallotBatch batch, Guid? expectedVoterId, byte[] maskMultiplier, IRSAService rsaService, IObjectToByteArrayTransformer objectToByteTransformer)
@@ -125,6 +126,12 @@ public sealed class CentralElectionCommission
         }
 
         return Result.Ok(expectedVoterId.Value);
+    }
+
+    private Result MarkVoterAsReceivedBallot(Guid voterId)
+    {
+        _votersStatuses[voterId] = VotingAttendanceStatus.ReceivedBallot;
+        return Result.Ok();
     }
 
     private Result<IReadOnlyCollection<byte[]>> SignBatch(BallotBatch ballotBatch, IRSAService rsaService)
@@ -190,6 +197,8 @@ public sealed class CentralElectionCommission
 
     private Result<int> AddVote(Ballot ballot)
     {
+        _votersStatuses[ballot.VoterId] = VotingAttendanceStatus.Voted;
+
         VotingResults.CandidatesResults[ballot.CandidateId].Votes++;
         var ballotNumber = VotingResults.VotersResults.Count + 1;
         VotingResults.VotersResults.Add(new(ballot.VoterId, ballotNumber, ballot.CandidateId));
