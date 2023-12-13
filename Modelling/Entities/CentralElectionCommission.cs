@@ -1,5 +1,4 @@
 ﻿using Algorithms.Abstractions;
-using Algorithms.Common;
 using FluentResults;
 using Modelling.Entities;
 using Modelling.Models;
@@ -8,12 +7,12 @@ using System.Security.Cryptography;
 namespace Modelling;
 public sealed class CentralElectionCommission
 {
-    private readonly Dictionary<int, Candidate> _candidates = new();
-    private readonly Dictionary<Guid, Voter> _voters = new();
+    private readonly Dictionary<int, Candidate> _candidates = [];
+    private readonly Dictionary<Guid, Voter> _voters = [];
 
     public VotingResults VotingResults { get; }
 
-    private readonly Dictionary<Guid, VoterStatus> _votersStatuses = new();
+    private readonly Dictionary<Guid, VoterStatus> _votersStatuses = [];
 
     public RSAParameters PublicKey { get; }
     private readonly RSAParameters _privateKey;
@@ -39,11 +38,12 @@ public sealed class CentralElectionCommission
         (PublicKey, _privateKey) = keysGenerator.GenerateKeys();
     }
 
-    public Result<IEnumerable<byte[]>> AcceptBatches(byte[] collection, IRSAService rsaService, IObjectToByteArrayTransformer objectToByteTransformer, IRandomProvider randomProvider)
+    public Result<IReadOnlyCollection<byte[]>> AcceptBatches(byte[] collection, IRSAService rsaService, IObjectToByteArrayTransformer objectToByteTransformer, IRandomProvider randomProvider)
     {
         return CheckIfVotingIsCompleted()
             .Bind(() => DecryptBallotBatchesCollection(collection, rsaService, objectToByteTransformer))
-            .Bind(c => CheckBatches())
+            .Bind(c => CheckBatches(c, rsaService, objectToByteTransformer, randomProvider))
+            .Bind(b => SignBatch(b, rsaService));
     }
 
     private Result<BallotBatchesCollection> DecryptBallotBatchesCollection(byte[] collection, IRSAService rsaService, IObjectToByteArrayTransformer objectToByteArrayTransformer)
@@ -54,34 +54,92 @@ public sealed class CentralElectionCommission
             e => new Error("Message has wrong format or was incorrectly encrypted.").CausedBy(e));
     }
 
-    private Result<IEnumerable<byte[]>> CheckBatches(BallotBatchesCollection collection, IRSAService rsaService, IObjectToByteArrayTransformer objectToByteArrayTransformer, IRandomProvider randomProvider)
+    private Result<BallotBatch> CheckBatches(BallotBatchesCollection ballotBatches, IRSAService rsaService, IObjectToByteArrayTransformer objectToByteTransformer, IRandomProvider randomProvider)
     {
-        var skipBatch = randomProvider.NextItem(collection.Batches);
-        foreach (var batch in collection.Batches) 
+        var skipBatch = randomProvider.NextItem(ballotBatches);
+        Guid? expectedVoterId = null;
+        foreach (var batch in ballotBatches)
         {
             if (batch == skipBatch)
             {
                 continue;
             }
 
-            var batchCheckResult = Result.Ok()
-                .Bind();
+            var batchVerificationResult = VerifyBatch(batch, expectedVoterId, ballotBatches.MaskMultiplier, rsaService, objectToByteTransformer);
+            expectedVoterId ??= batchVerificationResult.Value;
+            if (batchVerificationResult.IsFailed)
+            {
+                return batchVerificationResult.ToResult();
+            }
         }
+        return skipBatch;
     }
 
-    private Result<BallotBatch> CheckBatch(BallotBatch batch, byte[] maskMultiplier, IRSAService rsaService, IObjectToByteArrayTransformer objectToByteArrayTransformer)
+    private Result<Guid> VerifyBatch(BallotBatch batch, Guid? expectedVoterId, byte[] maskMultiplier, IRSAService rsaService, IObjectToByteArrayTransformer objectToByteTransformer)
     {
-        foreach (var maskedBallot in batch.MaskedBallots)
-        {
+        return DemaskBallots(batch, maskMultiplier, rsaService, objectToByteTransformer)
+            .Bind(VerifyBatchCandidates)
+            .Bind(b => CheckBatchVoter(b, expectedVoterId));
+    }
 
+    private Result<IReadOnlyList<Ballot>> DemaskBallots(BallotBatch batch, byte[] maskMultiplier, IRSAService rsaService, IObjectToByteArrayTransformer objectToByteTransformer)
+    {
+        return Result.Try<IReadOnlyList<Ballot>>(() => batch.MaskedBallots.Select(b =>
+        {
+            var temporarilySigned = rsaService.SignHash(b, _privateKey);
+            var demasked = rsaService.DemaskSignature(temporarilySigned, PublicKey, maskMultiplier);
+            return objectToByteTransformer.ReverseTransform<Ballot>(demasked)
+                ?? throw new InvalidOperationException("Value cannot be demasked.");
+        }).ToList(), e => new Error("Message has wrong format or was incorrectly encrypted.").CausedBy(e));
+    }
+
+    private Result<IReadOnlyList<Ballot>> VerifyBatchCandidates(IReadOnlyList<Ballot> ballots)
+    {
+        return Result.OkIf(
+                ballots.Count == _candidates.Keys.Count, 
+                "Some batches contain too much candidates.")
+            .Bind(() => Result.OkIf(
+                ballots.Select(b => b.CandidateId).ToHashSet().SetEquals(_candidates.Keys.ToHashSet()),
+                new Error("Ballot batches contains candidates that are not enlisted.")));
+    }
+
+    private Result<Guid> CheckBatchVoter(IReadOnlyList<Ballot> ballots, Guid? expectedVoterId)
+    {
+        expectedVoterId ??= ballots.FirstOrDefault()?.VoterId;
+
+        if (expectedVoterId is null || ballots.Any(b => b.VoterId != expectedVoterId))
+        {
+            return Result.Fail(new Error("Not all ballots have the same voter."));
         }
+
+        if (!_voters.ContainsKey(expectedVoterId.Value))
+        {
+            return Result.Fail(new Error("Voter was not found."));
+        }
+
+        var voterHasSentBallots = _votersStatuses[expectedVoterId.Value] is VoterStatus.ReceivedBallot or VoterStatus.Voted;
+        if (voterHasSentBallots)
+        {
+            return Result.Fail(new Error("The voted has already received signed ballots."));
+        }
+
+        return Result.Ok(expectedVoterId.Value);
+    }
+
+    private Result<IReadOnlyCollection<byte[]>> SignBatch(BallotBatch ballotBatch, IRSAService rsaService)
+    {
+        return Result.Ok<IReadOnlyCollection<byte[]>>(ballotBatch.MaskedBallots.Select(b => rsaService.SignHash(b, _privateKey)).ToList());
     }
 
     public Result<int> AcceptVote(byte[] encryptedSignedBallot, IRSAService rsaService, IObjectToByteArrayTransformer objectToByteTransformer)
     {
         return CheckIfVotingIsCompleted()
             .Bind(() => DecryptSignedBallot(encryptedSignedBallot, rsaService, objectToByteTransformer))
-            .Bind(sb => VerifySignature(sb, rsaService, objectToByteTransformer))
+            .Bind(sb => 
+            { 
+                var isSignatureAuthentic = sb.VerifySignature(PublicKey, rsaService, objectToByteTransformer);
+                return isSignatureAuthentic.ToResult(sb.Ballot);
+            })
             .Bind(VerifyVoterWhileVoting)
             .Bind(VerifyCandidate)
             .Bind(AddVote);
@@ -101,21 +159,9 @@ public sealed class CentralElectionCommission
             e => new Error("Message has wrong format or was incorrectly encrypted.").CausedBy(e));
     }
 
-    private Result<Ballot> VerifySignature(SignedBallot signedBallot, IRSAService rsaService, IObjectToByteArrayTransformer objectToByteArrayTransformer)
-    {
-        var signatureIsAuthentic = rsaService.VerifyHash(objectToByteArrayTransformer.Transform(signedBallot.Ballot), signedBallot.Signature, PublicKey);
-
-        if (!signatureIsAuthentic)
-        {
-            return Result.Fail(new Error("The signature is not authentic."));
-        }
-
-        return Result.Ok(signedBallot.Ballot);
-    }
-
     private Result<Ballot> VerifyVoterWhileVoting(Ballot ballot)
     {
-        var voterWasFound = _voters.TryGetValue(ballot.VoterId, out var voter);
+        var voterWasFound = _voters.TryGetValue(ballot.VoterId, out _);
         if (!voterWasFound)
         {
             return Result.Fail(new Error("The voter was not found."));

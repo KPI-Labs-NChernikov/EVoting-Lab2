@@ -1,4 +1,8 @@
-﻿namespace Modelling;
+﻿using Algorithms.Abstractions;
+using FluentResults;
+using System.Security.Cryptography;
+
+namespace Modelling;
 public sealed class SignedBallot
 {
     public Ballot Ballot { get; }
@@ -9,5 +13,17 @@ public sealed class SignedBallot
     {
         Ballot = ballot;
         Signature = signature;
+    }
+
+    public Result VerifySignature(RSAParameters publicKey, IRSAService rsaService, IObjectToByteArrayTransformer objectToByteArrayTransformer)
+    {
+        var signatureIsAuthentic = rsaService.VerifyHash(objectToByteArrayTransformer.Transform(Ballot), Signature, publicKey);
+
+        if (!signatureIsAuthentic)
+        {
+            return Result.Fail(new Error("The signature is not authentic."));
+        }
+
+        return Result.Ok();
     }
 }
