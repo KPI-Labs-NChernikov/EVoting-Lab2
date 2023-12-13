@@ -97,10 +97,10 @@ public sealed class CentralElectionCommission
     {
         return Result.OkIf(
                 ballots.Count == _candidates.Keys.Count, 
-                "Some batches contain too much candidates.")
+                "Quantity of batches is not equal to quantity of candidates.")
             .Bind(() => Result.OkIf(
                 ballots.Select(b => b.CandidateId).ToHashSet().SetEquals(_candidates.Keys.ToHashSet()),
-                new Error("Ballot batches contains candidates that are not enlisted.")));
+                new Error("Ballot batches contain candidates that are not enlisted or duplicate candidates.")));
     }
 
     private Result<Guid> CheckBatchVoter(IReadOnlyList<Ballot> ballots, Guid? expectedVoterId)
