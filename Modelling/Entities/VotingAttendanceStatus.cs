@@ -1,5 +1,5 @@
 ﻿namespace Modelling.Entities;
-public enum VoterStatus
+public enum VotingAttendanceStatus
 {
     NotAttended,
     ReceivedBallot,

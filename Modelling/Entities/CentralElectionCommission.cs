@@ -12,7 +12,7 @@ public sealed class CentralElectionCommission
 
     public VotingResults VotingResults { get; }
 
-    private readonly Dictionary<Guid, VoterStatus> _votersStatuses = [];
+    private readonly Dictionary<Guid, VotingAttendanceStatus> _votersStatuses = [];
 
     public RSAParameters PublicKey { get; }
     private readonly RSAParameters _privateKey;
@@ -32,7 +32,7 @@ public sealed class CentralElectionCommission
         foreach (var voter in voters)
         {
             _voters.Add(voter.Id, voter);
-            _votersStatuses.Add(voter.Id, VoterStatus.NotAttended);
+            _votersStatuses.Add(voter.Id, VotingAttendanceStatus.NotAttended);
         }
 
         (PublicKey, _privateKey) = keysGenerator.GenerateKeys();
@@ -118,7 +118,7 @@ public sealed class CentralElectionCommission
             return Result.Fail(new Error("Voter was not found."));
         }
 
-        var voterHasSentBallots = _votersStatuses[expectedVoterId.Value] is VoterStatus.ReceivedBallot or VoterStatus.Voted;
+        var voterHasSentBallots = _votersStatuses[expectedVoterId.Value] is VotingAttendanceStatus.ReceivedBallot or VotingAttendanceStatus.Voted;
         if (voterHasSentBallots)
         {
             return Result.Fail(new Error("The voted has already received signed ballots."));
@@ -168,7 +168,7 @@ public sealed class CentralElectionCommission
             return Result.Fail(new Error("The voter was not found."));
         }
 
-        var voterHasVoted = _votersStatuses[ballot.VoterId] == VoterStatus.Voted;
+        var voterHasVoted = _votersStatuses[ballot.VoterId] == VotingAttendanceStatus.Voted;
         if (voterHasVoted)
         {
             return Result.Fail(new Error("The voted has already casted a vote."));
