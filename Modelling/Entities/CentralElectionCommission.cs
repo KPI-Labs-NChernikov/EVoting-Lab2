@@ -169,7 +169,7 @@ public sealed class CentralElectionCommission
 
     private Result<Ballot> VerifyVoterWhileVoting(Ballot ballot)
     {
-        var voterWasFound = _voters.TryGetValue(ballot.VoterId, out _);
+        var voterWasFound = _voters.ContainsKey(ballot.VoterId);
         if (!voterWasFound)
         {
             return Result.Fail(new Error("The voter was not found."));
