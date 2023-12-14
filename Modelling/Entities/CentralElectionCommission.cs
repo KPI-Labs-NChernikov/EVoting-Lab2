@@ -114,9 +114,15 @@ public sealed class CentralElectionCommission
             return Result.Fail(new Error("Not all ballots have the same voter."));
         }
 
-        if (!_voters.ContainsKey(expectedVoterId.Value))
+        if (!_voters.TryGetValue(expectedVoterId.Value, out var voter))
         {
             return Result.Fail(new Error("Voter was not found."));
+        }
+
+        var voterAbility = voter.IsAbleToVote();
+        if (voterAbility.IsFailed)
+        {
+            return voterAbility;
         }
 
         var voterHasSentBallots = _votersStatuses[expectedVoterId.Value] is VotingAttendanceStatus.ReceivedBallot or VotingAttendanceStatus.Voted;
