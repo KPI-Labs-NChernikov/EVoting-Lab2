@@ -1,6 +1,8 @@
 ﻿using Algorithms.Abstractions;
 using Modelling;
+using Modelling.Extensions;
 using System.Security.Cryptography;
+using static Demo.UtilityMethods;
 
 namespace Demo;
 public sealed class ModellingPrinter
@@ -23,87 +25,124 @@ public sealed class ModellingPrinter
 
     public void PrintUsualVoting(CentralElectionCommission commission, Dictionary<Voter, int> votersWithCandidateIds)
     {
+        Console.WriteLine("Usual voting:");
+
         foreach (var (voter, candidateId) in votersWithCandidateIds)
         {
             var batchesCollection = voter.GenerateBallotBatches(commission.Candidates.Select(c => c.Id), commission.PublicKey, _rsaService, _objectToByteArrayTransformer, _rsaKeysGenerator);
             var signedBatch = commission.AcceptBatches(batchesCollection, _rsaService, _objectToByteArrayTransformer, _randomProvider);
-            signedBatch.PrintErrorIfFailed();
+            if (signedBatch.IsFailed)
+            {
+                PrintError(signedBatch.ToResult());
+                continue;
+            }
             
             var finalBallot = voter.CreateFinalBallot(signedBatch.Value, candidateId, commission.PublicKey, _rsaService, _objectToByteArrayTransformer);
-            finalBallot.PrintErrorIfFailed();
+            if (finalBallot.IsFailed)
+            {
+                PrintError(finalBallot.ToResult());
+                continue;
+            }
 
             var votingResult = commission.AcceptVote(finalBallot.Value, _rsaService, _objectToByteArrayTransformer);
+            if (votingResult.IsSuccess)
+            {
+                Console.WriteLine($"Voter {voter.Id} has casted their vote successfully.");
+            }
         }
+
+        Console.WriteLine();
     }
 
-    //public void PrintVotingWithIncorrectBallot(CentralElectionCommission commission)
-    //{
-    //    var ballot = new EncryptedSignedBallot(new byte[] { 4, 6, 8, 0 });
-    //    var result = commission.AcceptBallot(ballot, _signatureProvider, _encryptionProvider, _objectToByteArrayTransformer);
+    public void PrintVotingWithIncorrectBallot(CentralElectionCommission commission)
+    {
+        Console.WriteLine("Voting with incorrect ballot:");
+        var finalBallot = new byte[] { 4, 6, 8, 0 };
+        var result = commission.AcceptVote(finalBallot, _rsaService, _objectToByteArrayTransformer);
 
-    //    if (!result.IsSuccess)
-    //    {
-    //        PrintError(result);
-    //    }
-    //}
+        result.PrintErrorIfFailed();
+        Console.WriteLine();
+    }
 
-    //public void PrintVotingWithBallotSignedByThirdParty(CentralElectionCommission commission, int candidateId, int voterId)
-    //{
-    //    var keys = _asymmetricKeysGenerator.GenerateKeys();
+    public void PrintVotingWithDoubleBallotCase1(CentralElectionCommission commission, Voter voter)
+    {
+        Console.WriteLine("Trying to vote two times (case 1: generate 2 ballots):");
+        var batchesCollection = voter.GenerateBallotBatches(commission.Candidates.Select(c => c.Id), commission.PublicKey, _rsaService, _objectToByteArrayTransformer, _rsaKeysGenerator);
+        var signedBatch1 = commission.AcceptBatches(batchesCollection, _rsaService, _objectToByteArrayTransformer, _randomProvider);
+        if (signedBatch1.IsSuccess)
+        {
+            Console.WriteLine("Batch has been signed for the first time.");
+        }
 
-    //    var ballot = new Ballot(voterId, candidateId);
+        var signedBatch2 = commission.AcceptBatches(batchesCollection, _rsaService, _objectToByteArrayTransformer, _randomProvider);
+        signedBatch2.PrintErrorIfFailed();
+        Console.WriteLine();
+    }
 
-    //    var ballotAsByteArray = _objectToByteArrayTransformer.Transform(ballot);
-    //    var signedBallot = new SignedBallot(ballot, _signatureProvider.Sign(ballotAsByteArray, keys.PrivateKey), keys.PublicKey);
+    public void PrintVotingWithDoubleBallotCase2(CentralElectionCommission commission, int candidateId, Voter voter)
+    {
+        Console.WriteLine("Trying to vote two times (case 2: vote with same ballot two times):");
+        var batchesCollection = voter.GenerateBallotBatches(commission.Candidates.Select(c => c.Id), commission.PublicKey, _rsaService, _objectToByteArrayTransformer, _rsaKeysGenerator);
+        var signedBatch = commission.AcceptBatches(batchesCollection, _rsaService, _objectToByteArrayTransformer, _randomProvider);
+        if (signedBatch.IsSuccess)
+        {
+            Console.WriteLine("Batch has been signed for the first time.");
+        }
+        var finalBallot = voter.CreateFinalBallot(signedBatch.Value, candidateId, commission.PublicKey, _rsaService, _objectToByteArrayTransformer);
+        var votingResult1 = commission.AcceptVote(finalBallot.Value, _rsaService, _objectToByteArrayTransformer);
+        if (votingResult1.IsSuccess)
+        {
+            Console.WriteLine("Vote has been accepted for the first time.");
+        }
 
-    //    var signedBallotAsByteArray = _objectToByteArrayTransformer.Transform(signedBallot);
-    //    var encryptedSignedBallot = new EncryptedSignedBallot(_encryptionProvider.Encrypt(signedBallotAsByteArray, commission.BallotEncryptionKey));
+        var votingResult2 = commission.AcceptVote(finalBallot.Value, _rsaService, _objectToByteArrayTransformer);
+        if (votingResult2.IsSuccess)
+        {
+            Console.WriteLine("Vote has been accepted for the second time.");
+        }
+        else
+        {
+            PrintError(votingResult2);
+        }
 
-    //    var result = commission.AcceptBallot(encryptedSignedBallot, _signatureProvider, _encryptionProvider, _objectToByteArrayTransformer);
+        Console.WriteLine();
+    }
 
-    //    if (!result.IsSuccess)
-    //    {
-    //        PrintError(result);
-    //    }
-    //}
+    public void PrintVotingResults(CentralElectionCommission commission)
+    {
+        Console.WriteLine("Results:");
+        commission.CompleteVoting();
 
-    //public void PrintVotingWithDoubleBallot(CentralElectionCommission commission, int candidateId, Voter voter)
-    //{
-    //    var ballot = voter.GenerateBallot(candidateId, commission.BallotEncryptionKey, _signatureProvider, _encryptionProvider, _objectToByteArrayTransformer);
+        var results = commission.VotingResults;
+        Console.WriteLine("Ballots:");
+        foreach (var ballotResult in results.VotersResults)
+        {
+            Console.WriteLine($"Ballot {ballotResult.BallotId} Voter {ballotResult.VoterId} Candidate {ballotResult.CandidateId}");
+        }
+        Console.WriteLine("Candidates:");
+        foreach (var candidate in results.CandidatesResults.Values.OrderByVotes())
+        {
+            Console.WriteLine($"{candidate.Candidate.FullName} (id: {candidate.Candidate.Id}): {candidate.Votes} votes");
+        }
+        Console.WriteLine();
+    }
 
-    //    var result = commission.AcceptBallot(ballot, _signatureProvider, _encryptionProvider, _objectToByteArrayTransformer);
+    public void PrintVotingAfterCompletion(CentralElectionCommission commission, int candidateId, Voter voter)
+    {
+        Console.WriteLine("Trying to vote after the completion of voting:");
+        if (!commission.IsVotingCompleted)
+        {
+            commission.CompleteVoting();
+        }
 
-    //    if (!result.IsSuccess)
-    //    {
-    //        PrintError(result);
-    //    }
-    //}
+        var batchesCollection = voter.GenerateBallotBatches(commission.Candidates.Select(c => c.Id), commission.PublicKey, _rsaService, _objectToByteArrayTransformer, _rsaKeysGenerator);
+        var signedBatch = commission.AcceptBatches(batchesCollection, _rsaService, _objectToByteArrayTransformer, _randomProvider);
+        signedBatch.PrintErrorIfFailed();
 
-    //public void PrintVotingResults(CentralElectionCommission commission)
-    //{
-    //    commission.CompleteVoting();
+        var fakeFinalBallot = new byte[] { 4, 6, 8, 0 };
+        var result = commission.AcceptVote(fakeFinalBallot, _rsaService, _objectToByteArrayTransformer);
+        result.PrintErrorIfFailed();
 
-    //    var results = commission.VotingResults.CandidatesResults.OrderByVotes().ToList();
-    //    foreach (var candidate in results)
-    //    {
-    //        Console.WriteLine($"{candidate.Candidate.FullName} (id: {candidate.Candidate.Id}): {candidate.Votes} votes");
-    //    }
-    //}
-
-    //public void PrintVotingAfterCompletion(CentralElectionCommission commission, int candidateId, Voter voter)
-    //{
-    //    if (!commission.IsVotingCompleted)
-    //    {
-    //        commission.CompleteVoting();
-    //    }
-
-    //    var ballot = voter.GenerateBallot(candidateId, commission.BallotEncryptionKey, _signatureProvider, _encryptionProvider, _objectToByteArrayTransformer);
-
-    //    var result = commission.AcceptBallot(ballot, _signatureProvider, _encryptionProvider, _objectToByteArrayTransformer);
-
-    //    if (!result.IsSuccess)
-    //    {
-    //        PrintError(result);
-    //    }
-    //}
+        Console.WriteLine();
+    }
 }

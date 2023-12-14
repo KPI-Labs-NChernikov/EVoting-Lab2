@@ -9,12 +9,10 @@ using Org.BouncyCastle.Crypto.Parameters;
 namespace Algorithms.RSA;
 public sealed class RSAKeysGenerator : IMaskedAsymmetricAlgorithmKeysGenerator<RSAParameters>
 {
-    private const int s_keySize = 1024;
-
     public Keys<RSAParameters> GenerateKeys()
     {
         var internalKeyPairGenerator = new RsaKeyPairGenerator();
-        internalKeyPairGenerator.Init(new KeyGenerationParameters(new SecureRandom(), s_keySize));
+        internalKeyPairGenerator.Init(new KeyGenerationParameters(new SecureRandom(), InternalConstants.RsaKeySize));
         var keyPair = internalKeyPairGenerator.GenerateKeyPair();
         var privateKey = (RsaPrivateCrtKeyParameters)keyPair.Private;
         var publicKey = (RsaKeyParameters)keyPair.Public;

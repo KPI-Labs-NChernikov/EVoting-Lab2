@@ -59,11 +59,13 @@ public sealed class CentralElectionCommission
             }
 
             var batchVerificationResult = CheckBatch(batch, expectedVoterId, ballotBatches.MaskMultiplier, rsaService, objectToByteTransformer);
-            expectedVoterId ??= batchVerificationResult.Value;
+
             if (batchVerificationResult.IsFailed)
             {
                 return batchVerificationResult.ToResult();
             }
+
+            expectedVoterId ??= batchVerificationResult.Value;
         }
         return (skipBatch, expectedVoterId!.Value);
     }
@@ -82,19 +84,18 @@ public sealed class CentralElectionCommission
             var temporarilySigned = rsaService.SignHash(b, _privateKey);
             var demaskedSignature = rsaService.DemaskSignature(temporarilySigned, PublicKey, maskMultiplier);
             var decryptedBallot = rsaService.Decrypt(demaskedSignature, PublicKey);
-            return objectToByteTransformer.ReverseTransform<Ballot>(decryptedBallot)
-                ?? throw new InvalidOperationException("Value cannot be demasked.");
+            var ballot = objectToByteTransformer.ReverseTransform<Ballot>(decryptedBallot);
+            return ballot ?? throw new InvalidOperationException("Value cannot be demasked.");
         }).ToList(), e => new Error("Message has wrong format or was incorrectly encrypted.").CausedBy(e));
     }
 
     private Result<IReadOnlyList<Ballot>> VerifyBatchCandidates(IReadOnlyList<Ballot> ballots)
     {
-        return Result.OkIf(
-                ballots.Count == _candidates.Keys.Count, 
-                "Quantity of batches is not equal to quantity of candidates.")
-            .Bind(() => Result.OkIf(
-                ballots.Select(b => b.CandidateId).ToHashSet().SetEquals(_candidates.Keys.ToHashSet()),
-                new Error("Ballot batches contain candidates that are not enlisted or duplicate candidates.")));
+        return Result.Ok(ballots)
+            .Bind(b => b.Count == _candidates.Keys.Count 
+                ? Result.Ok(b) : Result.Fail<IReadOnlyList<Ballot>>("Quantity of batches is not equal to quantity of candidates."))
+            .Bind(b => b.Select(x => x.CandidateId).ToHashSet().SetEquals(_candidates.Keys.ToHashSet())
+                ? Result.Ok(b) : Result.Fail<IReadOnlyList<Ballot>>("Ballot batches contain candidates that are not enlisted or duplicate candidates."));
     }
 
     private Result<Guid> CheckBatchVoter(IReadOnlyList<Ballot> ballots, Guid? expectedVoterId)

@@ -16,9 +16,9 @@ public sealed class DemoDataFactory
     {
         return new List<Candidate>
         {
-            new Candidate(1, "Ishaan Allison"),
-            new Candidate(2, "Oliver Mendez"),
-            new Candidate(3, "Naomi Winter"),
+            new (1, "Ishaan Allison"),
+            new (2, "Oliver Mendez"),
+            new (3, "Naomi Winter"),
         };
     }
 
@@ -26,16 +26,16 @@ public sealed class DemoDataFactory
     {
         return new List<Voter>
         {
-            new Voter(Guid.NewGuid(), true), 
-            new Voter(Guid.NewGuid(), false),      // Not capable.
-            new Voter(Guid.NewGuid(), true),
-            new Voter(Guid.NewGuid(), true),
-            new Voter(Guid.NewGuid(), true),
-            new Voter(Guid.NewGuid(), true),
-            new Voter(Guid.NewGuid(), true),
+            new (Guid.NewGuid(), true), 
+            new (Guid.NewGuid(), false),      // Not capable.
+            new (Guid.NewGuid(), true),
+            new (Guid.NewGuid(), true),
+            new (Guid.NewGuid(), true),
+            new (Guid.NewGuid(), true),
+            new (Guid.NewGuid(), true),
 
-            new Voter(Guid.NewGuid(), true),
-            new Voter(Guid.NewGuid(), true)
+            new (Guid.NewGuid(), true),
+            new (Guid.NewGuid(), true)
         };
     }
 

@@ -15,16 +15,11 @@ var commission = factory.CreateCentralElectionCommission(candidates, voters);
 
 var printer = new ModellingPrinter(rsaService, rsaKeysGenerator, randomProvider, objectToByteArrayTransformer);
 
-printer.PrintUsualVoting(commission, factory.CreateVotersWithCandidateIds(voters));
-//printer.PrintVotingWithIncorrectBallot(commission);
-//printer.PrintVotingWithDoubleBallotCase1(commission, randomProvider.NextItem(candidates).Id, randomProvider.NextItem(voters.Skip(2)));
-//printer.PrintVotingWithDoubleBallotCase2(commission, randomProvider.NextItem(candidates).Id, randomProvider.NextItem(voters.Skip(2)));
-Console.WriteLine();
+printer.PrintUsualVoting(commission, factory.CreateVotersWithCandidateIds(voters.SkipLast(2).ToList()));
+printer.PrintVotingWithIncorrectBallot(commission);
+printer.PrintVotingWithDoubleBallotCase1(commission, voters[^1]);
+printer.PrintVotingWithDoubleBallotCase2(commission, 2, voters[^2]);
 
-Console.WriteLine("Results:");
-//printer.PrintVotingResults(commission);
+printer.PrintVotingResults(commission);
 
-Console.WriteLine();
-//printer.PrintVotingAfterCompletion(commission, randomProvider.NextItem(candidates).Id, randomProvider.NextItem(voters));
-
-Console.WriteLine();
+printer.PrintVotingAfterCompletion(commission, randomProvider.NextItem(candidates).Id, randomProvider.NextItem(voters));

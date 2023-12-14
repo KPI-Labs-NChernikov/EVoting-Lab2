@@ -10,10 +10,20 @@ public sealed class RSAService : IRSAService
 {
     public byte[] Decrypt(byte[] data, RSAParameters privateKey)
     {
+        var blockSize = (InternalConstants.RsaKeySize + 7) / 8;
+
         var engine = new RsaEngine();
         engine.Init(false, BouncyCastleRsaParametersMapper.RSAParametersToBouncy(privateKey));
 
-        return engine.ProcessBlock(data, 0, data.Length);
+        using var stream = new MemoryStream();
+        var chunks = data.Chunk(blockSize);
+        foreach (var chunk in chunks)
+        {
+            var processed = engine.ProcessBlock(chunk, 0, chunk.Length);
+            stream.Write(processed);
+        }
+        
+        return stream.ToArray();
     }
 
     public byte[] DemaskSignature(byte[] data, RSAParameters publicKey, byte[] maskMultiplier)
@@ -28,10 +38,20 @@ public sealed class RSAService : IRSAService
 
     public byte[] Encrypt(byte[] data, RSAParameters publicKey)
     {
+        var blockSize = (InternalConstants.RsaKeySize + 7) / 8;
+
         var engine = new RsaEngine();
         engine.Init(true, BouncyCastleRsaParametersMapper.RSAParametersToBouncy(publicKey));
 
-        return engine.ProcessBlock(data, 0, data.Length);
+        using var stream = new MemoryStream();
+        var chunks = data.Chunk(blockSize);
+        foreach (var chunk in chunks)
+        {
+            var processed = engine.ProcessBlock(chunk, 0, chunk.Length);
+            stream.Write(processed);
+        }
+
+        return stream.ToArray();
     }
 
     public byte[] Mask(byte[] data, RSAParameters publicKey, byte[] maskMultiplier)
