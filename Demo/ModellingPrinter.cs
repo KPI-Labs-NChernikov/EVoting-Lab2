@@ -1,6 +1,7 @@
 ﻿using Algorithms.Abstractions;
 using Modelling;
 using Modelling.Extensions;
+using Modelling.Models;
 using System.Security.Cryptography;
 using static Demo.UtilityMethods;
 
@@ -47,7 +48,7 @@ public sealed class ModellingPrinter
             var votingResult = commission.AcceptVote(finalBallot.Value, _rsaService, _objectToByteArrayTransformer);
             if (votingResult.IsSuccess)
             {
-                Console.WriteLine($"Voter {voter.Id} has casted their vote successfully.");
+                Console.WriteLine($"Voter {voter.Id} has casted their vote successfully. Ballot number: {votingResult.Value}.");
             }
         }
 
@@ -93,6 +94,7 @@ public sealed class ModellingPrinter
         if (votingResult1.IsSuccess)
         {
             Console.WriteLine("Vote has been accepted for the first time.");
+            Console.WriteLine($"Voter {voter.Id} has casted their vote successfully. Ballot number: {votingResult1.Value}.");
         }
 
         var votingResult2 = commission.AcceptVote(finalBallot.Value, _rsaService, _objectToByteArrayTransformer);
