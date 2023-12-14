@@ -9,7 +9,7 @@ using Org.BouncyCastle.Crypto.Parameters;
 namespace Algorithms.RSA;
 public sealed class RSAKeysGenerator : IMaskedAsymmetricAlgorithmKeysGenerator<RSAParameters>
 {
-    private const int s_keySize = 512;
+    private const int s_keySize = 1024;
 
     public Keys<RSAParameters> GenerateKeys()
     {

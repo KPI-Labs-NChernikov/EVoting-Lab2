@@ -9,13 +9,12 @@ public sealed class Voter
 
     public bool IsCapable { get; }
 
-    private readonly byte[] _maskMultiplier;
+    private byte[]? _maskMultiplier;
 
-    public Voter(Guid id, bool isCapable, RSAParameters centralElectionCommissionPublicKey, IMaskedAsymmetricAlgorithmKeysGenerator<RSAParameters> keysGenerator)
+    public Voter(Guid id, bool isCapable)
     {
         Id = id;
         IsCapable = isCapable;
-        _maskMultiplier = keysGenerator.GenerateMaskMultiplier(centralElectionCommissionPublicKey);
     }
 
     public Result IsAbleToVote()
@@ -28,12 +27,15 @@ public sealed class Voter
         return Result.Ok();
     }
 
-    public byte[] GenerateBallotBatches(
+    public BallotBatchesCollection GenerateBallotBatches(
         IEnumerable<int> candidatesIds, 
         RSAParameters centralElectionCommissionPublicKey, 
         IRSAService rsaService, 
-        IObjectToByteArrayTransformer objectToByteTransformer)
+        IObjectToByteArrayTransformer objectToByteTransformer, 
+        IMaskedAsymmetricAlgorithmKeysGenerator<RSAParameters> keysGenerator)
     {
+        _maskMultiplier = keysGenerator.GenerateMaskMultiplier(centralElectionCommissionPublicKey);
+
         const int batchesCount = 10;
         var batches = new BallotBatch[batchesCount];
 
@@ -50,12 +52,10 @@ public sealed class Voter
             batches[i] = new BallotBatch(maskedBallots);
         }
 
-        var result = new BallotBatchesCollection(batches, _maskMultiplier);
-
-        return rsaService.Encrypt(objectToByteTransformer.Transform(result), centralElectionCommissionPublicKey);
+        return new BallotBatchesCollection(batches, _maskMultiplier);
     }
 
-    public Result<byte[]> Vote(
+    public Result<byte[]> CreateFinalBallot(
         IEnumerable<byte[]> signedBallots, 
         int candidateId,
         RSAParameters centralElectionCommissionPublicKey,
@@ -78,7 +78,7 @@ public sealed class Voter
         {
             foreach (var signedBallot in signedBallots)
             {
-                var signature = rsaService.DemaskSignature(signedBallot, centralElectionCommissionPublicKey, _maskMultiplier);
+                var signature = rsaService.DemaskSignature(signedBallot, centralElectionCommissionPublicKey, _maskMultiplier!);
                 var ballotAsByteArray = rsaService.Decrypt(signature, centralElectionCommissionPublicKey);
                 var ballot = objectToByteTransformer.ReverseTransform<Ballot>(ballotAsByteArray);
 

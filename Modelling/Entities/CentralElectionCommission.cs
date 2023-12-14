@@ -11,6 +11,7 @@ public sealed class CentralElectionCommission
     private readonly Dictionary<Guid, Voter> _voters = [];
 
     public VotingResults VotingResults { get; }
+    public IReadOnlyList<Candidate> Candidates => _candidates.Values.OrderBy(x => x.Id).ToList();
 
     private readonly Dictionary<Guid, VotingAttendanceStatus> _votersStatuses = [];
 
@@ -38,21 +39,12 @@ public sealed class CentralElectionCommission
         (PublicKey, _privateKey) = keysGenerator.GenerateKeys();
     }
 
-    public Result<IReadOnlyCollection<byte[]>> AcceptBatches(byte[] collection, IRSAService rsaService, IObjectToByteArrayTransformer objectToByteTransformer, IRandomProvider randomProvider)
+    public Result<IReadOnlyCollection<byte[]>> AcceptBatches(BallotBatchesCollection collection, IRSAService rsaService, IObjectToByteArrayTransformer objectToByteTransformer, IRandomProvider randomProvider)
     {
         return CheckIfVotingIsCompleted()
-            .Bind(() => DecryptBallotBatchesCollection(collection, rsaService, objectToByteTransformer))
-            .Bind(c => CheckBatches(c, rsaService, objectToByteTransformer, randomProvider))
+            .Bind(() => CheckBatches(collection, rsaService, objectToByteTransformer, randomProvider))
             .Bind(r => MarkVoterAsReceivedBallot(r.voterId).ToResult(r.ballotBatch))
             .Bind(b => SignBatch(b, rsaService));
-    }
-
-    private Result<BallotBatchesCollection> DecryptBallotBatchesCollection(byte[] collection, IRSAService rsaService, IObjectToByteArrayTransformer objectToByteArrayTransformer)
-    {
-        return Result.Try(()
-            => objectToByteArrayTransformer.ReverseTransform<BallotBatchesCollection>(rsaService.Decrypt(collection, _privateKey))
-                ?? throw new InvalidOperationException("Value cannot be transformed to ballot batches collection ballot."),
-            e => new Error("Message has wrong format or was incorrectly encrypted.").CausedBy(e));
     }
 
     private Result<(BallotBatch ballotBatch, Guid voterId)> CheckBatches(BallotBatchesCollection ballotBatches, IRSAService rsaService, IObjectToByteArrayTransformer objectToByteTransformer, IRandomProvider randomProvider)

@@ -1,29 +1,30 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using Algorithms.Common;
 using Algorithms.RSA;
-using System.Numerics;
-
-var generator = new RSAKeysGenerator();
-var keys  = generator.GenerateKeys();
-var maskMultiplier = generator.GenerateMaskMultiplier(keys.PublicKey);
-
-var message = "Hello world";
-var data = new ObjectToByteArrayTransformer().Transform(message);
+using Demo;
 
 var rsaService = new RSAService();
-var mask = rsaService.Mask(data, keys.PublicKey, maskMultiplier);
+var rsaKeysGenerator = new RSAKeysGenerator();
+var randomProvider = new RandomProvider();
+var objectToByteArrayTransformer = new ObjectToByteArrayTransformer();
 
-var signed = rsaService.SignHash(mask, keys.PrivateKey);
+var factory = new DemoDataFactory(rsaKeysGenerator);
+var candidates = factory.CreateCandidates();
+var voters = factory.CreateVoters();
+var commission = factory.CreateCentralElectionCommission(candidates, voters);
 
-var demasked = rsaService.DemaskSignature(signed, keys.PublicKey, maskMultiplier);
+var printer = new ModellingPrinter(rsaService, rsaKeysGenerator, randomProvider, objectToByteArrayTransformer);
 
-var verified = rsaService.VerifyHash(data, demasked, keys.PublicKey);
-var verified2 = rsaService.VerifyHash(mask, signed, keys.PublicKey);
+printer.PrintUsualVoting(commission, factory.CreateVotersWithCandidateIds(voters));
+//printer.PrintVotingWithIncorrectBallot(commission);
+//printer.PrintVotingWithDoubleBallotCase1(commission, randomProvider.NextItem(candidates).Id, randomProvider.NextItem(voters.Skip(2)));
+//printer.PrintVotingWithDoubleBallotCase2(commission, randomProvider.NextItem(candidates).Id, randomProvider.NextItem(voters.Skip(2)));
+Console.WriteLine();
 
-var demasked2 = rsaService.DemaskSignature(mask, keys.PublicKey, maskMultiplier);
+Console.WriteLine("Results:");
+//printer.PrintVotingResults(commission);
 
-var encrypted = rsaService.Encrypt(data, keys.PublicKey);
-var decrypted = rsaService.Decrypt(encrypted, keys.PrivateKey);
-var decryptedData = new ObjectToByteArrayTransformer().ReverseTransform<string>(decrypted);
+Console.WriteLine();
+//printer.PrintVotingAfterCompletion(commission, randomProvider.NextItem(candidates).Id, randomProvider.NextItem(voters));
 
 Console.WriteLine();
