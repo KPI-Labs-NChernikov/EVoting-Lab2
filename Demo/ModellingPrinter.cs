@@ -79,9 +79,9 @@ public sealed class ModellingPrinter
         Console.WriteLine();
     }
 
-    public void PrintVotingWithDoubleBallotCase2(CentralElectionCommission commission, int candidateId, Voter voter)
+    public void PrintVotingWithDoubleBallotCase2(CentralElectionCommission commission, int candidateId, int anotherCandidateId, Voter voter)
     {
-        Console.WriteLine("Trying to vote two times (case 2: vote with same ballot two times):");
+        Console.WriteLine("Trying to vote two times (case 2: vote with same batch of ballots two times):");
         var batchesCollection = voter.GenerateBallotBatches(commission.Candidates.Select(c => c.Id), commission.PublicKey, _rsaService, _objectToByteArrayTransformer, _rsaKeysGenerator);
         var signedBatch = commission.AcceptBatches(batchesCollection, _rsaService, _objectToByteArrayTransformer, _randomProvider);
         if (signedBatch.IsSuccess)
@@ -103,6 +103,18 @@ public sealed class ModellingPrinter
         else
         {
             PrintError(votingResult2);
+        }
+
+        var finalBallot3 = voter.CreateFinalBallot(signedBatch.Value, anotherCandidateId, commission.PublicKey, _rsaService, _objectToByteArrayTransformer);
+        var votingResult3 = commission.AcceptVote(finalBallot3.Value, _rsaService, _objectToByteArrayTransformer);
+        if (votingResult3.IsSuccess)
+        {
+            Console.WriteLine("Vote for another candidate has been accepted.");
+        }
+        else
+        {
+            Console.Write("Vote for another candidate has also also not been accepted: ");
+            PrintError(votingResult3);
         }
 
         Console.WriteLine();

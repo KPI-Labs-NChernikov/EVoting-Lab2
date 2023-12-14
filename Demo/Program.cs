@@ -18,7 +18,7 @@ var printer = new ModellingPrinter(rsaService, rsaKeysGenerator, randomProvider,
 printer.PrintUsualVoting(commission, factory.CreateVotersWithCandidateIds(voters.SkipLast(2).ToList()));
 printer.PrintVotingWithIncorrectBallot(commission);
 printer.PrintVotingWithDoubleBallotCase1(commission, voters[^1]);
-printer.PrintVotingWithDoubleBallotCase2(commission, 2, voters[^2]);
+printer.PrintVotingWithDoubleBallotCase2(commission, 2, 3, voters[^2]);
 
 printer.PrintVotingResults(commission);
 
